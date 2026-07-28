@@ -8,8 +8,12 @@ import com.ds1.util.JwtUtil;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService {
@@ -64,6 +68,7 @@ public class UserService {
         result.put("username", user.getUsername());
         result.put("email", user.getEmail());
         result.put("role", user.getRole());
+        result.put("createdAt", user.getCreatedAt());
         return result;
     }
 
@@ -73,5 +78,50 @@ public class UserService {
     public User findByUsername(String username) {
         return userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("用户不存在"));
+    }
+
+    /**
+     * Get dashboard statistics
+     */
+    public Map<String, Object> getDashboardStats() {
+        long totalUsers = userRepository.count();
+        long todayNew = userRepository.countByCreatedAtAfter(LocalDate.now().atStartOfDay());
+
+        Map<String, Object> stats = new HashMap<>();
+        stats.put("totalUsers", totalUsers);
+        stats.put("todayNew", todayNew);
+        return stats;
+    }
+
+    /**
+     * Get all users (for admin table)
+     */
+    public List<Map<String, Object>> getAllUsers() {
+        return userRepository.findAll().stream().map(user -> {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", user.getId());
+            map.put("username", user.getUsername());
+            map.put("email", user.getEmail());
+            map.put("role", user.getRole());
+            map.put("createdAt", user.getCreatedAt());
+            return map;
+        }).collect(Collectors.toList());
+    }
+
+    /**
+     * Update current user's profile
+     */
+    public User updateProfile(String username, Map<String, String> updates) {
+        User user = findByUsername(username);
+
+        if (updates.containsKey("email")) {
+            String newEmail = updates.get("email");
+            if (!newEmail.equals(user.getEmail()) && userRepository.existsByEmail(newEmail)) {
+                throw new RuntimeException("邮箱已被占用");
+            }
+            user.setEmail(newEmail);
+        }
+
+        return userRepository.save(user);
     }
 }

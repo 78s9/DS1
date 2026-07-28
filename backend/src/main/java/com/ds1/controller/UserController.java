@@ -36,4 +36,23 @@ public class UserController {
 
         return ResponseEntity.ok(ApiResponse.success(userInfo));
     }
+
+    /**
+     * PUT /api/user/me — Update current user profile (email, etc.)
+     */
+    @PutMapping("/me")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> updateProfile(
+            Principal principal,
+            @RequestBody Map<String, String> updates) {
+        User user = userService.updateProfile(principal.getName(), updates);
+
+        Map<String, Object> userInfo = new HashMap<>();
+        userInfo.put("id", user.getId());
+        userInfo.put("username", user.getUsername());
+        userInfo.put("email", user.getEmail());
+        userInfo.put("role", user.getRole());
+        userInfo.put("createdAt", user.getCreatedAt());
+
+        return ResponseEntity.ok(ApiResponse.success(userInfo));
+    }
 }

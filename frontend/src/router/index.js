@@ -19,9 +19,20 @@ const routes = [
   },
   {
     path: '/dashboard',
-    name: 'Dashboard',
     component: () => import('@/views/Dashboard.vue'),
-    meta: { requiresAuth: true }
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'DashboardHome',
+        component: () => import('@/views/DashboardHome.vue')
+      },
+      {
+        path: 'users',
+        name: 'UserManagement',
+        component: () => import('@/views/UserManagement.vue')
+      }
+    ]
   }
 ]
 
