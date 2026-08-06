@@ -1,8 +1,20 @@
 <template>
-  <div class="login-container">
-    <div class="login-card">
-      <h2 class="login-title">DS1 管理系统</h2>
-      <p class="login-subtitle">请登录您的账户</p>
+  <div class="auth-container">
+    <!-- Particle Background -->
+    <div class="particle-bg">
+      <div
+        v-for="p in particles"
+        :key="p.id"
+        class="particle"
+        :style="p.style"
+      />
+    </div>
+
+    <!-- Login Card -->
+    <div class="auth-card">
+      <div class="auth-logo">🚀</div>
+      <h2 class="auth-title">DS1 管理系统</h2>
+      <p class="auth-subtitle">请登录您的账户</p>
 
       <el-form
         ref="formRef"
@@ -29,6 +41,11 @@
           />
         </el-form-item>
 
+        <div class="login-extra">
+          <el-checkbox v-model="rememberMe" label="记住密码" size="small" />
+          <a class="forgot-link" href="javascript:void(0)" @click="onForgot">忘记密码？</a>
+        </div>
+
         <el-form-item>
           <el-button
             type="primary"
@@ -41,7 +58,7 @@
         </el-form-item>
       </el-form>
 
-      <div class="login-footer">
+      <div class="auth-footer">
         还没有账户？
         <router-link to="/register">立即注册</router-link>
       </div>
@@ -61,11 +78,17 @@ const router = useRouter()
 const authStore = useAuthStore()
 const formRef = ref(null)
 const loading = ref(false)
+const rememberMe = ref(false)
 
 const form = reactive({
-  username: '',
+  username: localStorage.getItem('rememberedUser') || '',
   password: ''
 })
+
+// Pre-fill if remembered
+if (form.username) {
+  rememberMe.value = true
+}
 
 const rules = {
   username: [{ required: true, message: '请输入用户名', trigger: 'blur' }],
@@ -80,8 +103,13 @@ async function handleLogin() {
   try {
     const res = await request.post('/auth/login', form)
     if (res.code === 200) {
+      if (rememberMe.value) {
+        localStorage.setItem('rememberedUser', form.username)
+      } else {
+        localStorage.removeItem('rememberedUser')
+      }
       authStore.setAuth(res.data)
-      ElMessage.success('登录成功')
+      ElMessage.success('登录成功 🎉')
       router.push('/dashboard')
     } else {
       ElMessage.error(res.message || '登录失败')
@@ -92,51 +120,41 @@ async function handleLogin() {
     loading.value = false
   }
 }
+
+function onForgot() {
+  ElMessage.info('请联系管理员重置密码 📧')
+}
+
+// Generate random floating particles
+const particles = ref(
+  Array.from({ length: 12 }, (_, i) => ({
+    id: i,
+    style: {
+      left: `${Math.random() * 100}%`,
+      width: `${20 + Math.random() * 60}px`,
+      height: `${20 + Math.random() * 60}px`,
+      animationDuration: `${8 + Math.random() * 12}s`,
+      animationDelay: `${Math.random() * 10}s`,
+    }
+  }))
+)
 </script>
 
 <style scoped>
-.login-container {
+.login-extra {
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  margin: -8px 0 18px;
 }
 
-.login-card {
-  width: 420px;
-  padding: 40px;
-  background: #fff;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
-}
-
-.login-title {
-  text-align: center;
-  margin: 0 0 8px;
-  font-size: 26px;
-  color: #303133;
-}
-
-.login-subtitle {
-  text-align: center;
-  margin: 0 0 32px;
+.forgot-link {
+  font-size: 13px;
   color: #909399;
-  font-size: 14px;
-}
-
-.login-footer {
-  text-align: center;
-  color: #909399;
-  font-size: 14px;
-}
-
-.login-footer a {
-  color: #409EFF;
   text-decoration: none;
 }
 
-.login-footer a:hover {
-  text-decoration: underline;
+.forgot-link:hover {
+  color: #409EFF;
 }
 </style>
