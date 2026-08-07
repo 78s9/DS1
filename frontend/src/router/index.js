@@ -1,4 +1,5 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { isTokenValid } from '@/utils/jwt'
 
 const routes = [
   {
@@ -58,11 +59,18 @@ const router = createRouter({
 // Navigation guard: check JWT auth
 router.beforeEach((to, from, next) => {
   const token = localStorage.getItem('token')
+  const tokenValid = isTokenValid(token)
 
-  if (to.meta.requiresAuth && !token) {
+  // Clean up expired/invalid token silently
+  if (token && !tokenValid) {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+  }
+
+  if (to.meta.requiresAuth && !tokenValid) {
     // Not authenticated — redirect to login
     next({ name: 'Login' })
-  } else if (to.meta.guest && token) {
+  } else if (to.meta.guest && tokenValid) {
     // Already authenticated — redirect to dashboard
     next({ name: 'DashboardHome' })
   } else {

@@ -114,8 +114,10 @@ async function handleLogin() {
     } else {
       ElMessage.error(res.message || '登录失败')
     }
-  } catch {
-    // Error already handled by interceptor
+  } catch (err) {
+    // Show the actual error message from the backend
+    const msg = err.response?.data?.message || '登录失败，请检查用户名和密码'
+    ElMessage.error(msg)
   } finally {
     loading.value = false
   }

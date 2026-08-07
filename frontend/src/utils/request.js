@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import router from '@/router'
 
 // Create an Axios instance
 const request = axios.create({
@@ -29,12 +30,19 @@ request.interceptors.response.use(
   (error) => {
     if (error.response) {
       const { status } = error.response
+      const isLoginRequest = error.config.url.includes('/auth/login')
+
       switch (status) {
         case 401:
+          // For login failures, let the Login page handle the error message
+          if (isLoginRequest) {
+            break
+          }
+          // For other 401s (expired token), redirect to login
           ElMessage.error('登录已过期，请重新登录')
           localStorage.removeItem('token')
           localStorage.removeItem('user')
-          window.location.hash = '#/login'
+          router.push('/login')
           break
         case 403:
           ElMessage.error('没有访问权限')
