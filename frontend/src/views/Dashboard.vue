@@ -66,6 +66,40 @@
         </div>
 
         <div class="header-right">
+          <!-- Theme Color Picker -->
+          <el-popover placement="bottom" :width="200" trigger="click">
+            <template #reference>
+              <el-tooltip content="切换主题色" placement="bottom">
+                <el-button text size="large" style="font-size:18px">
+                  🎨
+                </el-button>
+              </el-tooltip>
+            </template>
+            <div class="theme-picker">
+              <div
+                v-for="(t, key) in themeList"
+                :key="key"
+                class="theme-dot"
+                :class="{ active: themeStore.themeName === key }"
+                :style="{ background: t.primary }"
+                :title="t.name"
+                @click="themeStore.setTheme(key)"
+              />
+            </div>
+          </el-popover>
+
+          <!-- Dark Mode Toggle -->
+          <el-tooltip :content="themeStore.isDark ? '切换亮色模式' : '切换暗黑模式'" placement="bottom">
+            <el-button
+              text
+              size="large"
+              style="font-size:18px"
+              @click="themeStore.toggleDark()"
+            >
+              {{ themeStore.isDark ? '☀️' : '🌙' }}
+            </el-button>
+          </el-tooltip>
+
           <!-- Fullscreen Toggle -->
           <el-tooltip :content="isFullscreen ? '退出全屏' : '全屏模式'" placement="bottom">
             <el-button
@@ -149,12 +183,16 @@
       </template>
     </el-dialog>
   </el-container>
+
+  <!-- Sticky Notes FAB -->
+  <StickyNotes />
 </template>
 
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
+import { useThemeStore, THEMES } from '@/store/theme'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   HomeFilled, UserFilled, Setting,
@@ -163,10 +201,13 @@ import {
   CircleCheck, InfoFilled, Warning
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+import StickyNotes from '@/components/StickyNotes.vue'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+const themeStore = useThemeStore()
+const themeList = THEMES
 
 const isCollapsed = ref(false)
 const isFullscreen = ref(false)
@@ -256,7 +297,7 @@ async function handleCommand(command) {
 
 /* ===== Sidebar ===== */
 .sidebar {
-  background-color: #304156;
+  background-color: var(--color-sidebar);
   overflow-y: auto;
   overflow-x: hidden;
   transition: width 0.3s ease;
@@ -403,6 +444,33 @@ async function handleCommand(command) {
   padding: 20px 0;
   color: #909399;
   font-size: 14px;
+}
+
+/* ===== Theme Picker ===== */
+.theme-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  padding: 4px;
+}
+
+.theme-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s;
+  border: 2px solid transparent;
+}
+
+.theme-dot:hover {
+  transform: scale(1.2);
+}
+
+.theme-dot.active {
+  border-color: #fff;
+  box-shadow: 0 0 0 3px currentColor;
 }
 
 /* ===== Main ===== */

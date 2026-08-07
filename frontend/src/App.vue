@@ -4,9 +4,20 @@
       <component :is="Component" :key="route.matched[0]?.path || route.path" />
     </transition>
   </router-view>
+  <!-- Global Command Palette (Ctrl+K) -->
+  <CommandPalette ref="cmdPalette" />
 </template>
 
 <script setup>
+import { onMounted, ref } from 'vue'
+import CommandPalette from '@/components/CommandPalette.vue'
+
+const cmdPalette = ref(null)
+
+// Expose cmd palette globally via window for easy access
+onMounted(() => {
+  window.__cmdPalette = cmdPalette.value
+})
 </script>
 
 <style>
@@ -26,6 +37,149 @@
   --color-danger: #f56c6c;
   --sidebar-width: 220px;
   --sidebar-collapsed-width: 64px;
+
+  /* Transition for theme switching */
+  --theme-transition: background 0.3s, color 0.3s, border-color 0.3s;
+}
+
+/* ===== Dark Mode ===== */
+html.dark {
+  --color-bg: #141414;
+  --color-white: #1f1f1f;
+  --color-text: #e5e5e5;
+  --color-text-secondary: #999;
+  --color-border: #333;
+  --color-sidebar: #1a1a2e;
+}
+
+html.dark body {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+html.dark .header {
+  background: var(--color-white) !important;
+  border-bottom-color: var(--color-border) !important;
+}
+
+html.dark .main-content {
+  background: var(--color-bg) !important;
+}
+
+/* Element Plus dark overrides */
+html.dark .el-card {
+  background: var(--color-white);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+
+html.dark .el-card__header {
+  border-bottom-color: var(--color-border);
+}
+
+html.dark .el-table {
+  --el-table-bg-color: var(--color-white);
+  --el-table-tr-bg-color: var(--color-white);
+  --el-table-header-bg-color: #2a2a2a;
+  --el-table-row-hover-bg-color: #2a2a2a;
+  --el-table-border-color: var(--color-border);
+  --el-table-text-color: var(--color-text);
+  --el-table-header-text-color: var(--color-text);
+}
+
+html.dark .el-table th.el-table__cell {
+  background-color: #2a2a2a;
+}
+
+html.dark .el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell {
+  background-color: #252525;
+}
+
+html.dark .el-pagination {
+  --el-pagination-bg-color: transparent;
+  --el-pagination-text-color: var(--color-text);
+}
+
+html.dark .el-pagination button {
+  color: var(--color-text);
+}
+
+html.dark .el-input__wrapper {
+  background-color: #2a2a2a;
+  box-shadow: 0 0 0 1px var(--color-border) inset;
+}
+
+html.dark .el-input__inner {
+  color: var(--color-text);
+}
+
+html.dark .el-select .el-input__wrapper {
+  background-color: #2a2a2a;
+}
+
+html.dark .el-dialog {
+  --el-dialog-bg-color: var(--color-white);
+}
+
+html.dark .el-descriptions__body .el-descriptions__table {
+  --el-descriptions-item-bordered-label-background: #2a2a2a;
+}
+
+html.dark .stat-value {
+  color: var(--color-text) !important;
+}
+
+html.dark .bar-value {
+  color: var(--color-text) !important;
+}
+
+html.dark .action-tile {
+  border-color: var(--color-border);
+}
+
+html.dark .action-tile:hover {
+  background: #2a2a2a;
+}
+
+html.dark .sidebar-username {
+  color: #ccc !important;
+}
+
+html.dark .header {
+  background: var(--color-white) !important;
+}
+
+html.dark .user-info:hover {
+  background: #2a2a2a;
+}
+
+html.dark .notification-item {
+  border-bottom-color: #333;
+}
+
+html.dark .notification-title {
+  border-bottom-color: #333;
+  color: var(--color-text);
+}
+
+html.dark .notification-text {
+  color: var(--color-text);
+}
+
+html.dark .auth-card {
+  background: #1f1f1f;
+}
+
+html.dark .auth-title {
+  color: #e5e5e5;
+}
+
+html.dark .auth-subtitle {
+  color: #999;
+}
+
+html.dark .auth-footer {
+  color: #999;
 }
 
 html, body, #app {
@@ -36,6 +190,7 @@ html, body, #app {
     'Microsoft YaHei', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: var(--theme-transition);
 }
 
 /* ===== Scrollbar ===== */
@@ -55,6 +210,14 @@ html, body, #app {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #909399;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #555;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #777;
 }
 
 /* ===== Selection ===== */
@@ -85,7 +248,7 @@ html, body, #app {
   inset: 0;
   overflow: hidden;
   z-index: 0;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
 }
 
 .particle {
@@ -149,7 +312,7 @@ html, body, #app {
   width: 64px;
   height: 64px;
   margin: 0 auto 16px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark));
   border-radius: 16px;
   display: flex;
   align-items: center;
@@ -180,7 +343,7 @@ html, body, #app {
 }
 
 .auth-footer a {
-  color: #409EFF;
+  color: var(--color-primary);
   text-decoration: none;
   font-weight: 500;
 }

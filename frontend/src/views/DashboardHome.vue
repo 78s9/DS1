@@ -14,6 +14,9 @@
       <div class="welcome-date">{{ currentDate }}</div>
     </div>
 
+    <!-- Daily Quote -->
+    <DailyQuote />
+
     <!-- Statistics Cards -->
     <el-row :gutter="20" class="stats-row">
       <el-col :span="6">
@@ -223,6 +226,7 @@ import {
   DataAnalysis, Download, CaretTop
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+import DailyQuote from '@/components/DailyQuote.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -359,7 +363,7 @@ onMounted(() => {
 <style scoped>
 /* ===== Welcome Banner ===== */
 .welcome-banner {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
   color: #fff;
   border-radius: 8px;
   padding: 24px 28px;
