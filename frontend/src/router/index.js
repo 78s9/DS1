@@ -36,6 +36,18 @@ const routes = [
         meta: { title: '用户管理' }
       },
       {
+        path: 'logs',
+        name: 'OperationLogs',
+        component: () => import('@/views/OperationLogs.vue'),
+        meta: { title: '操作日志' }
+      },
+      {
+        path: 'workshop',
+        name: 'DataWorkshop',
+        component: () => import('@/views/DataWorkshop.vue'),
+        meta: { title: '数据工坊' }
+      },
+      {
         path: 'settings',
         name: 'SystemSettings',
         component: () => import('@/views/SystemSettings.vue'),

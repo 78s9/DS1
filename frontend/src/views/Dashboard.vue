@@ -28,6 +28,14 @@
           <el-icon><UserFilled /></el-icon>
           <span>用户管理</span>
         </el-menu-item>
+        <el-menu-item index="/dashboard/logs">
+          <el-icon><Document /></el-icon>
+          <span>操作日志</span>
+        </el-menu-item>
+        <el-menu-item index="/dashboard/workshop">
+          <el-icon><MagicStick /></el-icon>
+          <span>数据工坊</span>
+        </el-menu-item>
         <el-menu-item index="/dashboard/settings">
           <el-icon><Setting /></el-icon>
           <span>系统设置</span>
@@ -195,7 +203,7 @@ import { useAuthStore } from '@/store/auth'
 import { useThemeStore, THEMES } from '@/store/theme'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  HomeFilled, UserFilled, Setting,
+  HomeFilled, UserFilled, Setting, MagicStick, Document,
   Expand, Fold, Bell, FullScreen,
   ArrowDown, Edit, SwitchButton, Message,
   CircleCheck, InfoFilled, Warning
@@ -221,6 +229,8 @@ const currentPage = computed(() => {
   const map = {
     '/dashboard': '',
     '/dashboard/users': '用户管理',
+    '/dashboard/logs': '操作日志',
+    '/dashboard/workshop': '数据工坊',
     '/dashboard/settings': '系统设置'
   }
   return map[route.path] || ''
