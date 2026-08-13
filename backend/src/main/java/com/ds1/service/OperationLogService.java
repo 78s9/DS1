@@ -34,6 +34,11 @@ public class OperationLogService {
      */
     public Map<String, Object> query(int page, int size, String keyword,
                                       String action, String module) {
+        // Clamp to sane bounds to avoid negative page and unbounded queries
+        if (page < 1) page = 1;
+        if (size < 1) size = 20;
+        if (size > 100) size = 100;
+
         Pageable pageable = PageRequest.of(page - 1, size);
 
         String kw = (keyword != null && !keyword.isEmpty()) ? keyword : null;
@@ -60,10 +65,6 @@ public class OperationLogService {
         long todayTotal = logRepository.countByCreatedAtAfter(startOfToday);
         long todaySuccess = logRepository.countByStatusAndCreatedAtAfter("SUCCESS", startOfToday);
         long todayFail = logRepository.countByStatusAndCreatedAtAfter("FAIL", startOfToday);
-
-        // Distinct action types today
-        List<String> actionTypes = Arrays.asList("LOGIN", "LOGOUT", "REGISTER",
-                "QUERY", "UPDATE", "DELETE", "CREATE");
 
         Map<String, Object> stats = new HashMap<>();
         stats.put("todayTotal", todayTotal);

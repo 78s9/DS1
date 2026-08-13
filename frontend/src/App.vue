@@ -145,10 +145,6 @@ html.dark .sidebar-username {
   color: #ccc !important;
 }
 
-html.dark .header {
-  background: var(--color-white) !important;
-}
-
 html.dark .user-info:hover {
   background: #2a2a2a;
 }

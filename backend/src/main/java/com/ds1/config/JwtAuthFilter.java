@@ -1,6 +1,7 @@
 package com.ds1.config;
 
 import com.ds1.util.JwtUtil;
+import io.jsonwebtoken.Claims;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -31,16 +32,22 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         String token = extractToken(request);
 
-        if (StringUtils.hasText(token) && jwtUtil.validateToken(token)) {
-            String username = jwtUtil.getUsernameFromToken(token);
+        if (StringUtils.hasText(token)) {
+            // Parse once; null means invalid/expired token
+            Claims claims = jwtUtil.parseToken(token);
+            if (claims != null) {
+                String username = claims.getSubject();
+                String role = claims.get("role") != null ? claims.get("role").toString() : "USER";
+                String authority = "ADMIN".equals(role) ? "ROLE_ADMIN" : "ROLE_USER";
 
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(
-                            username, null,
-                            Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-                    );
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                username, null,
+                                Collections.singletonList(new SimpleGrantedAuthority(authority))
+                        );
 
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            }
         }
 
         filterChain.doFilter(request, response);

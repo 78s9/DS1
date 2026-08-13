@@ -37,28 +37,14 @@ public class JwtUtil {
     }
 
     /**
-     * Extract username from token
+     * Parse and validate the token in a single pass.
+     * Returns the claims, or null if the token is invalid/expired.
      */
-    public String getUsernameFromToken(String token) {
-        return getClaimsFromToken(token).getSubject();
-    }
-
-    /**
-     * Validate token
-     */
-    public boolean validateToken(String token) {
+    public Claims parseToken(String token) {
         try {
-            Jwts.parser().setSigningKey(secret).parseClaimsJws(token);
-            return true;
+            return Jwts.parser().setSigningKey(secret).parseClaimsJws(token).getBody();
         } catch (JwtException | IllegalArgumentException e) {
-            return false;
+            return null;
         }
-    }
-
-    private Claims getClaimsFromToken(String token) {
-        return Jwts.parser()
-                .setSigningKey(secret)
-                .parseClaimsJws(token)
-                .getBody();
     }
 }

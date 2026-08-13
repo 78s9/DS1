@@ -1,6 +1,7 @@
 package com.ds1.config;
 
 import com.ds1.service.OperationLogService;
+import com.ds1.util.ClientIpUtil;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
@@ -123,15 +124,6 @@ public class LogAspect {
         ServletRequestAttributes attrs =
                 (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
         if (attrs == null) return "unknown";
-
-        HttpServletRequest request = attrs.getRequest();
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("X-Real-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        return ip;
+        return ClientIpUtil.getClientIp(attrs.getRequest());
     }
 }

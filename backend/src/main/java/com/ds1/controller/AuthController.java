@@ -5,6 +5,7 @@ import com.ds1.dto.LoginRequest;
 import com.ds1.dto.RegisterRequest;
 import com.ds1.service.OperationLogService;
 import com.ds1.service.UserService;
+import com.ds1.util.ClientIpUtil;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,11 +34,11 @@ public class AuthController {
         try {
             userService.register(request);
             logService.log(request.getUsername(), "REGISTER", "认证",
-                    "用户注册: " + request.getUsername(), getClientIp(httpRequest), "SUCCESS");
+                    "用户注册: " + request.getUsername(), ClientIpUtil.getClientIp(httpRequest), "SUCCESS");
             return ResponseEntity.ok(ApiResponse.success("注册成功", null));
         } catch (RuntimeException e) {
             logService.log(request.getUsername(), "REGISTER", "认证",
-                    "注册失败: " + e.getMessage(), getClientIp(httpRequest), "FAIL");
+                    "注册失败: " + e.getMessage(), ClientIpUtil.getClientIp(httpRequest), "FAIL");
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error(400, e.getMessage()));
         }
@@ -52,24 +53,13 @@ public class AuthController {
         try {
             Map<String, Object> result = userService.login(request);
             logService.log(request.getUsername(), "LOGIN", "认证",
-                    "用户登录: " + request.getUsername(), getClientIp(httpRequest), "SUCCESS");
+                    "用户登录: " + request.getUsername(), ClientIpUtil.getClientIp(httpRequest), "SUCCESS");
             return ResponseEntity.ok(ApiResponse.success("登录成功", result));
         } catch (RuntimeException e) {
             logService.log(request.getUsername(), "LOGIN", "认证",
-                    "登录失败: " + e.getMessage(), getClientIp(httpRequest), "FAIL");
+                    "登录失败: " + e.getMessage(), ClientIpUtil.getClientIp(httpRequest), "FAIL");
             return ResponseEntity.status(401)
                     .body(ApiResponse.error(401, e.getMessage()));
         }
-    }
-
-    private String getClientIp(HttpServletRequest request) {
-        String ip = request.getHeader("X-Forwarded-For");
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getHeader("X-Real-IP");
-        }
-        if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
-            ip = request.getRemoteAddr();
-        }
-        return ip;
     }
 }
