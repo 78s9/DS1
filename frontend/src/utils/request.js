@@ -30,7 +30,7 @@ request.interceptors.response.use(
   (error) => {
     if (error.response) {
       const { status } = error.response
-      const isLoginRequest = error.config.url.includes('/auth/login')
+      const isLoginRequest = error.config?.url?.includes('/auth/login')
 
       switch (status) {
         case 401:

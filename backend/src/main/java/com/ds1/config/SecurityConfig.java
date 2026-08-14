@@ -4,6 +4,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -33,6 +34,11 @@ public class SecurityConfig {
                 // Public endpoints
                 .antMatchers("/api/auth/**").permitAll()
                 .antMatchers("/h2-console/**").permitAll()
+                // Admin-only endpoints
+                .antMatchers(HttpMethod.DELETE, "/api/user/**").hasRole("ADMIN")
+                .antMatchers(HttpMethod.PUT, "/api/user/*/role").hasRole("ADMIN")
+                .antMatchers("/api/dashboard/users").hasRole("ADMIN")
+                .antMatchers("/api/logs", "/api/logs/**").hasRole("ADMIN")
                 // All other requests need authentication
                 .anyRequest().authenticated()
             .and()

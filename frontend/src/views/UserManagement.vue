@@ -73,10 +73,20 @@
             {{ formatTime(row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="140" align="center" fixed="right">
+        <el-table-column label="操作" width="250" align="center" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link size="small" @click.stop="viewUser(row)">
               <el-icon><View /></el-icon> 查看
+            </el-button>
+            <el-button
+              type="warning"
+              link
+              size="small"
+              :disabled="isSelf(row)"
+              @click.stop="toggleRole(row)"
+            >
+              <el-icon><Switch /></el-icon>
+              {{ row.role === 'ADMIN' ? '降为用户' : '升为管理员' }}
             </el-button>
             <el-popconfirm
               title="确定要删除该用户吗？"
@@ -86,7 +96,7 @@
               @click.stop
             >
               <template #reference>
-                <el-button type="danger" link size="small">
+                <el-button type="danger" link size="small" :disabled="isSelf(row)">
                   <el-icon><Delete /></el-icon>
                 </el-button>
               </template>
@@ -137,9 +147,12 @@
 
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue'
-import { Search, View, Delete, Download } from '@element-plus/icons-vue'
+import { Search, View, Delete, Download, Switch } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
 import request from '@/utils/request'
+import { useAuthStore } from '@/store/auth'
+
+const authStore = useAuthStore()
 
 // ===== Data =====
 const users = ref([])
@@ -192,9 +205,31 @@ function viewUser(row) {
   detailVisible.value = true
 }
 
-function handleDelete(row) {
-  // Mock delete - backend would need a DELETE endpoint
-  ElMessage.warning(`删除用户「${row.username}」的功能需要后端支持，暂时仅作演示`)
+function isSelf(row) {
+  return row.username === authStore.user?.username
+}
+
+async function handleDelete(row) {
+  if (isSelf(row)) return
+  try {
+    await request.delete(`/user/${row.id}`)
+    ElMessage.success(`已删除用户「${row.username}」`)
+    loadUsers()
+  } catch {
+    // error handled by interceptor
+  }
+}
+
+async function toggleRole(row) {
+  if (isSelf(row)) return
+  const newRole = row.role === 'ADMIN' ? 'USER' : 'ADMIN'
+  try {
+    await request.put(`/user/${row.id}/role`, { role: newRole })
+    ElMessage.success(`已将「${row.username}」角色更新为 ${newRole}`)
+    loadUsers()
+  } catch {
+    // error handled by interceptor
+  }
 }
 
 async function loadUsers() {

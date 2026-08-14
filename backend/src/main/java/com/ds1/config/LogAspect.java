@@ -27,10 +27,12 @@ public class LogAspect {
 
     /**
      * Intercept all methods in @RestController classes to auto-log requests.
-     * Skips the OperationLogController itself to avoid infinite loops.
+     * Skips OperationLogController to avoid infinite loops, and AuthController which
+     * logs itself (so it can record the attempted username on login/register failures).
      */
     @Around("within(@org.springframework.web.bind.annotation.RestController *) " +
-            "&& !within(com.ds1.controller.OperationLogController)")
+            "&& !within(com.ds1.controller.OperationLogController) " +
+            "&& !within(com.ds1.controller.AuthController)")
     public Object logAround(ProceedingJoinPoint joinPoint) throws Throwable {
         String username = getCurrentUsername();
         String action = getActionName(joinPoint);

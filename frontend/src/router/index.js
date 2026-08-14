@@ -33,13 +33,13 @@ const routes = [
         path: 'users',
         name: 'UserManagement',
         component: () => import('@/views/UserManagement.vue'),
-        meta: { title: '用户管理' }
+        meta: { title: '用户管理', role: 'ADMIN' }
       },
       {
         path: 'logs',
         name: 'OperationLogs',
         component: () => import('@/views/OperationLogs.vue'),
-        meta: { title: '操作日志' }
+        meta: { title: '操作日志', role: 'ADMIN' }
       },
       {
         path: 'workshop',
@@ -85,6 +85,14 @@ router.beforeEach((to, from, next) => {
   } else if (to.meta.guest && tokenValid) {
     // Already authenticated — redirect to dashboard
     next({ name: 'DashboardHome' })
+  } else if (to.meta.role) {
+    // Role-restricted page (admin only) — check user role
+    const user = JSON.parse(localStorage.getItem('user') || 'null')
+    if (user?.role !== to.meta.role) {
+      next({ name: 'DashboardHome' })
+    } else {
+      next()
+    }
   } else {
     next()
   }

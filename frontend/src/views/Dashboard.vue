@@ -24,11 +24,11 @@
           <el-icon><HomeFilled /></el-icon>
           <span>首页</span>
         </el-menu-item>
-        <el-menu-item index="/dashboard/users">
+        <el-menu-item v-if="isAdmin" index="/dashboard/users">
           <el-icon><UserFilled /></el-icon>
           <span>用户管理</span>
         </el-menu-item>
-        <el-menu-item index="/dashboard/logs">
+        <el-menu-item v-if="isAdmin" index="/dashboard/logs">
           <el-icon><Document /></el-icon>
           <span>操作日志</span>
         </el-menu-item>
@@ -126,7 +126,12 @@
               </el-badge>
             </template>
             <div class="notification-list">
-              <div class="notification-title">消息通知</div>
+              <div class="notification-title">
+                <span>消息通知</span>
+                <el-button v-if="unreadCount > 0" type="primary" link size="small" @click="markAllRead">
+                  全部已读
+                </el-button>
+              </div>
               <div v-for="n in notifications" :key="n.id" class="notification-item">
                 <div class="notification-icon" :style="{ background: n.color }">
                   <el-icon :size="14"><component :is="n.icon" /></el-icon>
@@ -159,6 +164,10 @@
                   <el-icon><Edit /></el-icon>
                   编辑资料
                 </el-dropdown-item>
+                <el-dropdown-item command="changePassword">
+                  <el-icon><Lock /></el-icon>
+                  修改密码
+                </el-dropdown-item>
                 <el-dropdown-item divided command="logout">
                   <el-icon><SwitchButton /></el-icon>
                   退出登录
@@ -190,6 +199,25 @@
         <el-button type="primary" :loading="saving" @click="saveProfile">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- Change Password Dialog -->
+    <el-dialog v-model="passwordDialogVisible" title="修改密码" width="420px" destroy-on-close>
+      <el-form :model="passwordForm" label-width="80px">
+        <el-form-item label="原密码">
+          <el-input v-model="passwordForm.oldPassword" type="password" show-password placeholder="请输入原密码" />
+        </el-form-item>
+        <el-form-item label="新密码">
+          <el-input v-model="passwordForm.newPassword" type="password" show-password placeholder="至少 6 位" />
+        </el-form-item>
+        <el-form-item label="确认密码">
+          <el-input v-model="passwordForm.confirmPassword" type="password" show-password placeholder="再次输入新密码" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="passwordDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="savingPassword" @click="savePassword">确定</el-button>
+      </template>
+    </el-dialog>
   </el-container>
 
   <!-- Sticky Notes FAB -->
@@ -205,7 +233,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   HomeFilled, UserFilled, Setting, MagicStick, Document,
   Expand, Fold, Bell, FullScreen,
-  ArrowDown, Edit, SwitchButton, Message,
+  ArrowDown, Edit, SwitchButton, Message, Lock,
   CircleCheck, InfoFilled, Warning
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
@@ -224,6 +252,7 @@ const activeMenu = computed(() => route.path)
 const username = computed(() => authStore.user?.username || '未知')
 const email = computed(() => authStore.user?.email || '未知')
 const myRole = computed(() => authStore.user?.role || 'USER')
+const isAdmin = computed(() => authStore.user?.role === 'ADMIN')
 
 const currentPage = computed(() => {
   const map = {
@@ -260,6 +289,50 @@ const notifications = ref([
   { id: 3, icon: 'Warning', color: '#fff7e6', text: '请及时完善个人资料', time: '1天前' },
 ])
 
+function markAllRead() {
+  unreadCount.value = 0
+  ElMessage.success('已全部标记为已读')
+}
+
+// ===== Change Password =====
+const passwordDialogVisible = ref(false)
+const savingPassword = ref(false)
+const passwordForm = ref({ oldPassword: '', newPassword: '', confirmPassword: '' })
+
+function openPasswordDialog() {
+  passwordForm.value = { oldPassword: '', newPassword: '', confirmPassword: '' }
+  passwordDialogVisible.value = true
+}
+
+async function savePassword() {
+  const { oldPassword, newPassword, confirmPassword } = passwordForm.value
+  if (!oldPassword || !newPassword) {
+    ElMessage.warning('请填写原密码和新密码')
+    return
+  }
+  if (newPassword.length < 6) {
+    ElMessage.warning('新密码至少 6 位')
+    return
+  }
+  if (newPassword !== confirmPassword) {
+    ElMessage.warning('两次输入的新密码不一致')
+    return
+  }
+
+  savingPassword.value = true
+  try {
+    await request.put('/user/me/password', { oldPassword, newPassword })
+    ElMessage.success('密码修改成功，请重新登录')
+    passwordDialogVisible.value = false
+    authStore.logout()
+    router.push('/login')
+  } catch {
+    // error handled by interceptor
+  } finally {
+    savingPassword.value = false
+  }
+}
+
 // ===== Profile Edit =====
 const profileDialogVisible = ref(false)
 const saving = ref(false)
@@ -289,11 +362,18 @@ async function saveProfile() {
 async function handleCommand(command) {
   if (command === 'editProfile') {
     openEditDialog()
+  } else if (command === 'changePassword') {
+    openPasswordDialog()
   } else if (command === 'logout') {
     try {
       await ElMessageBox.confirm('确定要退出登录吗？', '提示', { type: 'warning' })
     } catch {
       return
+    }
+    try {
+      await request.post('/auth/logout')
+    } catch {
+      // 登出接口失败不影响本地退出
     }
     authStore.logout()
     router.push('/login')
@@ -415,6 +495,9 @@ async function handleCommand(command) {
   padding-bottom: 10px;
   border-bottom: 1px solid #ebeef5;
   margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .notification-item {
