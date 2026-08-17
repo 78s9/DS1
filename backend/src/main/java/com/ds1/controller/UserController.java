@@ -72,8 +72,9 @@ public class UserController {
     @PutMapping("/{id}/role")
     public ResponseEntity<ApiResponse<Map<String, Object>>> updateRole(
             @PathVariable Long id,
-            @Valid @RequestBody UpdateRoleRequest request) {
-        User user = userService.updateRole(id, request.getRole());
+            @Valid @RequestBody UpdateRoleRequest request,
+            Principal principal) {
+        User user = userService.updateRole(id, request.getRole(), principal.getName());
         return ResponseEntity.ok(ApiResponse.success(buildUserInfo(user)));
     }
 

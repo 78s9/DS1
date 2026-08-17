@@ -27,9 +27,10 @@ public class OperationLogController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String action,
-            @RequestParam(required = false) String module) {
+            @RequestParam(required = false) String module,
+            @RequestParam(required = false) String status) {
 
-        Map<String, Object> result = logService.query(page, size, keyword, action, module);
+        Map<String, Object> result = logService.query(page, size, keyword, action, module, status);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
 

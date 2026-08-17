@@ -7,8 +7,12 @@ echo.
 
 cd /d "%~dp0frontend"
 
-echo [INFO] Installing dependencies...
-call npm install
+if not exist "node_modules" (
+    echo [INFO] Installing dependencies (first run)...
+    call npm install
+) else (
+    echo [INFO] Dependencies already installed, skipping npm install.
+)
 
 echo.
 echo [INFO] Starting dev server on port 3000...

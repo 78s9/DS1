@@ -161,13 +161,17 @@ public class UserService {
     /**
      * Update a user's role (admin only)
      */
-    public User updateRole(Long id, String role) {
+    public User updateRole(Long id, String role, String currentUsername) {
         if (!"ADMIN".equals(role) && !"USER".equals(role)) {
             throw new BusinessException(HttpStatus.BAD_REQUEST.value(), "无效的角色，只能为 ADMIN 或 USER");
         }
 
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(HttpStatus.NOT_FOUND.value(), "用户不存在"));
+
+        if (user.getUsername().equals(currentUsername)) {
+            throw new BusinessException(HttpStatus.BAD_REQUEST.value(), "不能修改自己的角色");
+        }
 
         user.setRole(role);
         return userRepository.save(user);

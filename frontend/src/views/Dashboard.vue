@@ -225,7 +225,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/store/auth'
 import { useThemeStore, THEMES } from '@/store/theme'
@@ -277,8 +277,12 @@ function toggleFullscreen() {
 }
 
 // Listen for ESC to exit fullscreen
-document.addEventListener('fullscreenchange', () => {
+function onFullscreenChange() {
   isFullscreen.value = !!document.fullscreenElement
+}
+document.addEventListener('fullscreenchange', onFullscreenChange)
+onUnmounted(() => {
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
 })
 
 // ===== Notifications =====

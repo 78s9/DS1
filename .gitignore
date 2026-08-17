@@ -31,3 +31,10 @@ desktop.ini
 # ===== Environment =====
 .env.local
 .env.*.local
+
+# ===== Maven Wrapper (keep the wrapper jar despite *.jar above) =====
+!backend/.mvn/wrapper/maven-wrapper.jar
+
+# ===== Project-specific (large / machine-specific, do not commit) =====
+jdk1.8.0_202/
+*.lnk

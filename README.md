@@ -146,7 +146,7 @@
 | PUT | `/api/user/{id}/role` | 修改用户角色 | ADMIN |
 | GET | `/api/dashboard/stats` | 仪表盘统计（总用户 / 今日新增） | JWT |
 | GET | `/api/dashboard/users` | 全部用户列表 | ADMIN |
-| GET | `/api/logs` | 操作日志分页查询（page / size / keyword / action / module） | ADMIN |
+| GET | `/api/logs` | 操作日志分页查询（page / size / keyword / action / module / status） | ADMIN |
 | GET | `/api/logs/stats` | 今日日志统计 | ADMIN |
 
 ### 🛠️ 后端技术特性
@@ -182,7 +182,7 @@ DS1/
 │       ├── dto/             # 请求/响应 DTO
 │       └── util/            # JWT 工具类
 │
-└── jdk1.8.0_202/            # ☕ 内置 JDK 8（无需额外安装）
+└── jdk1.8.0_202/            # ☕ 本地 JDK 8（可选，不入库，建议自装）
 ```
 
 ---
@@ -194,16 +194,18 @@ DS1/
 ```bash
 cd backend
 
-# Windows（使用项目自带 JDK 8）
-..\jdk1.8.0_202\bin\java.exe -jar target/ds1-backend-1.0.0.jar
+# 方式一：直接用 Maven 跑（需要本机已装 JDK 8）
+mvnw.cmd spring-boot:run
 
-# 或者用 Maven 直接跑
-mvnw spring-boot:run
+# 方式二：先打包再运行
+mvnw.cmd clean package -DskipTests
+java -jar target\ds1-backend-1.0.0.jar
 ```
 
 > 🌱 默认使用 **H2 内存数据库**，无需安装任何数据库！  
 > 后端跑在 → `http://localhost:8080`  
-> H2 控制台 → `http://localhost:8080/h2-console`
+> H2 控制台 → `http://localhost:8080/h2-console`  
+> 也可直接双击项目根目录的 `start-backend.bat`（优先使用本地 `jdk1.8.0_202`，否则用系统 Java）
 
 ### 2️⃣ 启动前端
 
@@ -240,11 +242,34 @@ spring:
 
 - 🧪 开发环境 JWT 密钥是硬编码的，**生产环境一定要换掉**！
 - 🗃️ H2 是内存数据库，重启后数据会消失 — 开发调试正合适
-- ☕ 项目自带 JDK 1.8，兼容性杠杠的
+- ☕ 后端基于 JDK 1.8；JDK 不再随仓库提交，请自装 JDK 8 或保留本地 `jdk1.8.0_202`
 
 ---
 
 ## 🧹 优化记录
+
+### 2026-08-17
+
+**脚本 & 构建**
+
+- 🐛 修复 `build-backend.bat` 路径损坏：路径里混进了退格符 `\b`（`DS1\backend` 变成 `DS1<退格>ackend`），脚本无法运行；同时移除硬编码的绝对路径，统一改用 `%~dp0` 相对定位。
+- 🛡️ `start-backend.bat` / `start-frontend.bat` 增强：JDK 改为存在性判断（本地有 `jdk1.8.0_202` 才用，否则回退系统 Java）；前端仅首次（`node_modules` 不存在时）才执行 `npm install`。
+
+**后端 — 权限 & 日志**
+
+- 🛡️ 修复「修改角色」无自校验：`UserController.updateRole` 现传入 `Principal`，`UserService.updateRole` 增加「不能修改自己的角色」校验，与 `deleteUser` 及 README 描述对齐，避免管理员通过 API 自我降级、锁死系统。
+- 🐛 修复操作日志「状态」筛选为死控件：`OperationLogController` / `OperationLogService` / `OperationLogRepository` 全链路补上 `status` 参数，前端 `loadLogs` 补发 `params.status`。
+- 📊 日志统计补全局「总记录数」：`/api/logs/stats` 返回 `total`（`logRepository.count()`），前端卡片改用 `stats.total`，不再复用会随筛选变化的分页 `totalLogs`。
+
+**前端**
+
+- ♻️ `Dashboard.vue` 的 `fullscreenchange` 监听改为命名函数并在 `onUnmounted` 清理。
+
+**工程 & 仓库**
+
+- 🧹 `.gitignore` 加 `!backend/.mvn/wrapper/maven-wrapper.jar` 白名单（wrapper jar 重新纳入跟踪，新 clone 不再依赖联网下载）；排除 `jdk1.8.0_202/` 与 `*.lnk`。
+- 🗑️ 停止跟踪整个 JDK（768 文件，约 375MB）与 `DS1.lnk`（`git rm --cached`，本地文件保留）。
+- 📄 README 快速启动命令修正：`mvnw` → `mvnw.cmd`（Windows）、补充打包步骤、JDK 改为「自装/可选」表述、日志 API 参数补 `status`。
 
 ### 2026-08-14
 

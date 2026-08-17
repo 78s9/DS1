@@ -41,7 +41,7 @@
         <el-card shadow="hover" class="stat-card">
           <div class="stat-icon" style="background: #f0f5ff; color: #722ed1;">📈</div>
           <div class="stat-info">
-            <div class="stat-value">{{ totalLogs }}</div>
+            <div class="stat-value">{{ stats.total }}</div>
             <div class="stat-label">总记录数</div>
           </div>
         </el-card>
@@ -157,7 +157,7 @@ const filterStatus = ref('')
 const currentPage = ref(1)
 const pageSize = ref(20)
 const totalLogs = ref(0)
-const stats = ref({ todayTotal: 0, todaySuccess: 0, todayFail: 0 })
+const stats = ref({ todayTotal: 0, todaySuccess: 0, todayFail: 0, total: 0 })
 
 // ===== Computed =====
 const pagedLogs = computed(() => logs.value)
@@ -185,6 +185,7 @@ async function loadLogs() {
     if (keyword.value) params.keyword = keyword.value
     if (filterAction.value) params.action = filterAction.value
     if (filterModule.value) params.module = filterModule.value
+    if (filterStatus.value) params.status = filterStatus.value
 
     const res = await request.get('/logs', { params })
     if (res.code === 200) {

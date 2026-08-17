@@ -33,7 +33,7 @@ public class OperationLogService {
      * Query logs with pagination and filters
      */
     public Map<String, Object> query(int page, int size, String keyword,
-                                      String action, String module) {
+                                      String action, String module, String status) {
         // Clamp to sane bounds to avoid negative page and unbounded queries
         if (page < 1) page = 1;
         if (size < 1) size = 20;
@@ -44,8 +44,9 @@ public class OperationLogService {
         String kw = (keyword != null && !keyword.isEmpty()) ? keyword : null;
         String act = (action != null && !action.isEmpty()) ? action : null;
         String mod = (module != null && !module.isEmpty()) ? module : null;
+        String st = (status != null && !status.isEmpty()) ? status : null;
 
-        Page<OperationLog> pageResult = logRepository.searchLogs(kw, act, mod, pageable);
+        Page<OperationLog> pageResult = logRepository.searchLogs(kw, act, mod, st, pageable);
 
         Map<String, Object> result = new HashMap<>();
         result.put("list", pageResult.getContent());
@@ -70,6 +71,7 @@ public class OperationLogService {
         stats.put("todayTotal", todayTotal);
         stats.put("todaySuccess", todaySuccess);
         stats.put("todayFail", todayFail);
+        stats.put("total", logRepository.count());
         return stats;
     }
 }

@@ -20,10 +20,12 @@ public interface OperationLogRepository extends JpaRepository<OperationLog, Long
            "(:keyword IS NULL OR l.username LIKE %:keyword% OR l.description LIKE %:keyword%) " +
            "AND (:action IS NULL OR l.action = :action) " +
            "AND (:module IS NULL OR l.module = :module) " +
+           "AND (:status IS NULL OR l.status = :status) " +
            "ORDER BY l.createdAt DESC")
     Page<OperationLog> searchLogs(@Param("keyword") String keyword,
                                   @Param("action") String action,
                                   @Param("module") String module,
+                                  @Param("status") String status,
                                   Pageable pageable);
 
     /**
