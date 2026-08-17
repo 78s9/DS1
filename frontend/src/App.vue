@@ -11,8 +11,13 @@
 <script setup>
 import { onMounted, ref } from 'vue'
 import CommandPalette from '@/components/CommandPalette.vue'
+import { useThemeStore } from '@/store/theme'
 
 const cmdPalette = ref(null)
+
+// Apply saved theme/dark mode globally on startup, so the login page also
+// reflects the user's chosen theme (not just after logging in).
+useThemeStore()
 
 // Expose cmd palette globally via window for easy access
 onMounted(() => {
@@ -244,7 +249,15 @@ html.dark ::-webkit-scrollbar-thumb:hover {
   inset: 0;
   overflow: hidden;
   z-index: 0;
-  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 50%, var(--color-primary) 100%);
+  background-size: 200% 200%;
+  animation: gradient-shift 18s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
 }
 
 .particle {
