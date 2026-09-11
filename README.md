@@ -136,8 +136,8 @@
 
 | 方法 | 路径 | 说明 | 鉴权 |
 |---|---|---|---|
-| POST | `/api/auth/register` | 用户注册 | 公开 |
-| POST | `/api/auth/login` | 用户登录，返回 JWT | 公开 |
+| POST | `/api/auth/register` | 用户注册（超限 429） | 公开 |
+| POST | `/api/auth/login` | 用户登录，返回 JWT（超限 429） | 公开 |
 | POST | `/api/auth/logout` | 用户登出（记录日志） | JWT |
 | GET | `/api/user/me` | 获取当前用户信息 | JWT |
 | PUT | `/api/user/me` | 更新当前用户资料（邮箱） | JWT |
@@ -152,7 +152,10 @@
 ### 🛠️ 后端技术特性
 
 - 🔐 Spring Security + JWT 无状态认证（token 内携带角色，映射 `ROLE_ADMIN` / `ROLE_USER`）
+- 🔑 JWT 密钥由环境变量注入 + 启动期强度校验（缺失或 <32 字节直接拒绝启动）
+- 🚦 登录/注册滑动窗口限流，超限返回 429（登录只计失败次数，成功即清零）
 - 🛡️ 基于角色的接口鉴权（`hasRole("ADMIN")` 保护用户管理 / 日志等敏感接口）
+- 🌐 CORS 来源白名单（不再通配符 + `allowCredentials`）
 - ⚠️ 全局异常处理（`@RestControllerAdvice`，业务异常与参数校验统一转 400，前端能拿到具体错误信息）
 - 📝 AOP 切面自动记录操作日志（`LogAspect`，跳过查询类请求减少噪音）
 - 🗃️ JPA 实体自动填充创建 / 更新时间
@@ -206,6 +209,9 @@ java -jar target\ds1-backend-1.0.0.jar
 > 后端跑在 → `http://localhost:8080`  
 > H2 控制台 → `http://localhost:8080/h2-console`  
 > 也可直接双击项目根目录的 `start-backend.bat`（优先使用本地 `jdk1.8.0_202`，否则用系统 Java）
+>
+> 🔑 **dev profile 内置了一个仅供本地开发的 JWT 密钥，clone 下来不用配任何环境变量就能跑**；
+> 一旦设置 `JWT_SECRET` 环境变量即以它为准。这个内置密钥在非 dev profile 下会导致启动失败。
 
 ### 2️⃣ 启动前端
 
@@ -234,19 +240,80 @@ spring:
     active: prod   # 改为 prod，使用 MySQL
 ```
 
-生产环境记得修改 MySQL 连接信息和你自己的 JWT 密钥哦 🔐
+生产环境**必须**通过环境变量提供密钥与数据库凭据，缺了 `JWT_SECRET` 服务会直接拒绝启动（这是故意的，免得带着默认密钥上线）：
+
+| 环境变量 | 必填 | 说明 |
+|---|---|---|
+| `JWT_SECRET` | ✅ | JWT 签名密钥，**至少 32 字节**（HS256 要求 256 bits） |
+| `JWT_EXPIRATION` | | token 有效期（毫秒），默认 86400000（24 小时） |
+| `DB_URL` | | MySQL 连接串，默认 `jdbc:mysql://localhost:3306/ds1db` |
+| `DB_USERNAME` / `DB_PASSWORD` | ✅（password） | 数据库账号密码 |
+| `CORS_ALLOWED_ORIGINS` | | 跨域白名单，逗号分隔；**prod 下默认为空，即不放开任何跨域** |
+| `AUTH_LOGIN_MAX_FAILURES` 等 | | 限流阈值，见 `application.yml` 的 `app.auth-rate-limit` |
+
+生成一个够强的密钥：
+
+```bash
+openssl rand -base64 48
+```
 
 ---
 
 ## 📌 注意事项
 
-- 🧪 开发环境 JWT 密钥是硬编码的，**生产环境一定要换掉**！
+- 🧪 JWT 密钥不再硬编码进仓库，改为环境变量 `JWT_SECRET` 注入；dev profile 有内置兜底密钥，**生产务必自己配一个**。
+- ⚠️ **历史遗留**：2026-09-11 之前，一个真实可用的 JWT 密钥一直明文写在 `application.yml` 并已提交进 git 历史。
+  即使现在删掉，它仍然存在于旧提交里，应当视作**已泄露**——所以不光是「以后别提交」，用旧密钥签发的 token 也应视为可伪造。
 - 🗃️ H2 是内存数据库，重启后数据会消失 — 开发调试正合适
 - ☕ 后端基于 JDK 1.8；JDK 不再随仓库提交，请自装 JDK 8 或保留本地 `jdk1.8.0_202`
 
 ---
 
 ## 🧹 优化记录
+
+### 2026-09-11
+
+> 本轮针对一次安全审查中列出的高危项动手，四项均已在本地跑通验证。
+
+**🔴 JWT 密钥外部化 + 启动期校验**
+
+- 🔐 `application.yml` 里硬编码并已入库的 `jwt.secret` 改为 `${JWT_SECRET:}` 注入。原先任何人拿到这份代码都能签发 `role=ADMIN` 的 token，等于管理员权限公开。
+- 🛡️ 新增 `JwtSecretValidator`：密钥为空或不足 32 字节（HS256 要求 256 bits）时**直接拒绝启动**，而不是打条警告继续跑。空密钥/弱密钥悄无声息地上生产，才是最危险的。
+- 🧩 dev profile 保留一个内置兜底密钥（前缀 `ds1-dev-only`），保证 clone 下来零配置可运行；该密钥一旦出现在非 dev profile 下会启动失败。
+- 🐛 `JwtUtil` 原来用 `signWith(HS256, String)`：jjwt 0.9.x 会把该字符串**当 BASE64 解码**，非 BASE64 字符被静默丢弃，导致真正参与签名的字节与校验的长度对不上。改为显式取 UTF-8 原始字节（RFC 7518），让上面的长度校验真正有意义。
+- 🗄️ prod 的 MySQL 账号密码同样外部化（`DB_URL` / `DB_USERNAME` / `DB_PASSWORD`），`useSSL` 默认改为 `true`。
+
+**🔴 登录/注册限流**
+
+- 🚦 新增 `RateLimiter`（进程内滑动窗口，无第三方依赖），接入 `AuthController`，超限返回 **429**。
+- 登录按「同一 IP + 用户名」只累计**失败**次数（默认 5 次 / 5 分钟），登录成功即清零 —— 正常用户不会因为自己的打字错误被锁死。
+- 注册按「同一 IP」累计**全部**尝试（默认 10 次 / 60 分钟），针对批量刷号。
+- 被限流期间不再续期窗口，避免攻击者靠持续重试把自己（或同 IP 用户）永久锁在门外。
+- 阈值全部走配置 `app.auth-rate-limit.*`，可用环境变量调整，无需重新打包。
+
+**🟠 隔离日志写入异常**
+
+- 🐛 `LogAspect` 的 `logService.log(...)` 原来在 `try` 块**内**：一旦 DB 抖动导致写日志失败，异常会被同一个 `catch` 捕获 —— **已经成功提交的「删除用户」会给客户端返回 500**。`AuthController` 里同样的写法还会让注册/登录在成功时误报失败。
+- 🧩 新增 `OperationLogService.logQuietly(...)`，把「写失败只记应用日志、绝不向上抛」下沉到服务层，切面与 `AuthController` 两条写日志路径一起受益，也避免在两个类里各写一遍 try/catch。
+
+**🟠 CORS 收敛**
+
+- 🛡️ `CorsConfig` 由 `allowedOriginPatterns("*")` + `allowCredentials(true)` 改为读取白名单 `app.cors.allowed-origins`；dev 默认放开 `localhost:3000`，prod 默认为空（不放开任何跨域），需要跨域时用 `CORS_ALLOWED_ORIGINS` 显式指定。
+- 鉴权走 `Authorization` 头而非 Cookie，原先的实际危害有限，但通配符 + 携带凭证是教科书式错误配置，一旦改用 Cookie 承载凭证就会直接变成任意站点可读取用户数据的漏洞。
+
+**验证结果**（本地 `dev` profile 实跑）
+
+| 场景 | 结果 |
+|---|---|
+| 正常登录 | ✅ 200，拿到 token |
+| 连续错误密码 5 次 | ✅ 均 401 |
+| 第 6 次错误密码 | ✅ 429「登录失败次数过多，请 5 分钟后再试」 |
+| 3 次错误 → 登录成功 → 再错 3 次 | ✅ 全程无 429，确认成功后配额已清零 |
+| `Origin: http://localhost:3000` | ✅ 返回 `Access-Control-Allow-Origin` |
+| `Origin: http://evil.com` | ✅ 已拒绝，无 ACAO 头 |
+| `JWT_SECRET=tooshort` 启动 | ✅ 启动失败：「当前 8 字节，HS256 要求至少 32 字节」 |
+
+> 📌 本轮未处理，仍留在待办清单上：改密码后旧 token 最长 24h 仍有效（无状态 JWT 通病）、`/h2-console/**` permitAll、`register` 唯一性检查的 TOCTOU、`updateProfile` 不校验邮箱格式、`DataInitializer` 用 `System.out.println` 打印默认密码、Spring Boot 2.7 / jjwt 0.9.1 已 EOL。
 
 ### 2026-08-17
 

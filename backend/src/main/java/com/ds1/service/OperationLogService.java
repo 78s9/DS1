@@ -2,6 +2,8 @@ package com.ds1.service;
 
 import com.ds1.entity.OperationLog;
 import com.ds1.repository.OperationLogRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -13,6 +15,8 @@ import java.util.*;
 
 @Service
 public class OperationLogService {
+
+    private static final Logger logger = LoggerFactory.getLogger(OperationLogService.class);
 
     private final OperationLogRepository logRepository;
 
@@ -27,6 +31,23 @@ public class OperationLogService {
                             String description, String ip, String status) {
         OperationLog opLog = new OperationLog(username, action, module, description, ip, status);
         return logRepository.save(opLog);
+    }
+
+    /**
+     * 写操作日志，失败只记应用日志、绝不向上抛。
+     *
+     * <p>日志是旁路逻辑：DB 抖动导致写入失败时，绝不能把已经成功提交的主业务
+     * （如删除用户）变成 500，也不能让调用方的 try/catch 误判主流程失败。
+     * 所有「仅为记录」的日志写入都应走这里。
+     */
+    public void logQuietly(String username, String action, String module,
+                           String description, String ip, String status) {
+        try {
+            log(username, action, module, description, ip, status);
+        } catch (Exception e) {
+            logger.warn("操作日志写入失败（不影响主流程）: action={}, module={}, status={}",
+                    action, module, status, e);
+        }
     }
 
     /**

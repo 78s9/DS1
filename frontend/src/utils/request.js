@@ -47,6 +47,11 @@ request.interceptors.response.use(
         case 403:
           ElMessage.error('没有访问权限')
           break
+        case 429:
+          // 登录页在 catch 里自己弹后端消息，这里跳过以免同一个提示弹两条
+          if (isLoginRequest) break
+          ElMessage.warning(error.response.data?.message || '操作过于频繁，请稍后再试')
+          break
         case 500:
           ElMessage.error('服务器内部错误')
           break

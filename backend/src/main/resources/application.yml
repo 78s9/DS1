@@ -5,10 +5,28 @@ spring:
   profiles:
     active: dev
 
-# ===== JWT (all profiles) =====
+# ===== JWT =====
+# 密钥不再硬编码入库：由环境变量 JWT_SECRET 注入。
+# 此处故意留空默认值 —— 未配置时由 JwtSecretValidator 在启动期直接拒绝启动，
+# 而不是默默退回到一个人人皆知的默认密钥（那等于把 ADMIN token 伪造权公开）。
 jwt:
-  secret: DS1-SECRET-KEY-2026-MUST-BE-AT-LEAST-256-BITS-LONG-FOR-HS256
-  expiration: 86400000  # 24 hours
+  secret: ${JWT_SECRET:}
+  expiration: ${JWT_EXPIRATION:86400000}  # 24 hours
+
+# ===== 跨域白名单 =====
+app:
+  cors:
+    # 逗号分隔。默认只放开本地前端 dev server，生产请用环境变量 CORS_ALLOWED_ORIGINS 指定真实域名。
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000,http://127.0.0.1:3000}
+
+  # ===== 登录/注册限流（进程内滑动窗口，超限返回 429）=====
+  auth-rate-limit:
+    # 同一 IP + 用户名，窗口内允许的登录失败次数
+    login-max-failures: ${AUTH_LOGIN_MAX_FAILURES:5}
+    login-window-minutes: ${AUTH_LOGIN_WINDOW_MINUTES:5}
+    # 同一 IP，窗口内允许的注册尝试次数（成功与失败都计入）
+    register-max-attempts: ${AUTH_REGISTER_MAX_ATTEMPTS:10}
+    register-window-minutes: ${AUTH_REGISTER_WINDOW_MINUTES:60}
 
 ---
 # ===== dev profile (H2) =====
@@ -31,6 +49,11 @@ spring:
       ddl-auto: update
     show-sql: true
 
+# 仅供本地开发的兜底密钥，让 clone 下来不配任何环境变量也能跑起来。
+# 一旦 JWT_SECRET 被设置则以环境变量为准；非 dev profile 下出现这个值会直接启动失败。
+jwt:
+  secret: ${JWT_SECRET:ds1-dev-only-insecure-secret-not-for-production-use-0123456789}
+
 ---
 # ===== prod profile (MySQL) =====
 spring:
@@ -38,12 +61,19 @@ spring:
     activate:
       on-profile: prod
   datasource:
-    url: jdbc:mysql://localhost:3306/ds1db?useSSL=false&serverTimezone=UTC&characterEncoding=utf-8
+    # 凭据同样外部化，避免把真实数据库账号提交进仓库
+    url: ${DB_URL:jdbc:mysql://localhost:3306/ds1db?useSSL=true&serverTimezone=UTC&characterEncoding=utf-8}
     driver-class-name: com.mysql.cj.jdbc.Driver
-    username: root
-    password: root
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
   jpa:
     database-platform: org.hibernate.dialect.MySQL8Dialect
     hibernate:
       ddl-auto: update
     show-sql: false
+
+# 生产默认不放开任何跨域来源 —— 前后端同源部署时本就不需要 CORS，
+# 确实跨域再通过 CORS_ALLOWED_ORIGINS 显式指定域名。
+app:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:}

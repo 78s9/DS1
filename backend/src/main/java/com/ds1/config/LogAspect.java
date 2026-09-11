@@ -44,12 +44,12 @@ public class LogAspect {
             Object result = joinPoint.proceed();
             // Log success (skip GET queries to avoid noise — only log mutating operations)
             if (!"QUERY".equals(action)) {
-                logService.log(username, action, module, description, ip, "SUCCESS");
+                logService.logQuietly(username, action, module, description, ip, "SUCCESS");
             }
             return result;
         } catch (Throwable t) {
-            // Log failure
-            logService.log(username, action, module,
+            // Log failure (logQuietly never throws, so it cannot mask the real exception)
+            logService.logQuietly(username, action, module,
                     description + " | 异常: " + t.getMessage(), ip, "FAIL");
             throw t;
         }
