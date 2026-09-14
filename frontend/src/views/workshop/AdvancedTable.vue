@@ -20,6 +20,8 @@
           </el-select>
         </div>
         <div class="at-toolbar-right">
+          <el-tag size="small" type="warning" effect="plain"
+                  title="100,000 条记录由前端本地随机生成，仅用于演示虚拟滚动">模拟数据</el-tag>
           <span class="at-info">共 <b>{{ filteredCount.toLocaleString() }}</b> 条，渲染 <b>{{ visibleCount }}</b> 个DOM节点</span>
           <el-button size="default" :icon="Refresh" @click="regenerate">重新生成</el-button>
           <el-button size="default" type="primary" :icon="Check" @click="batchApprove" :disabled="selectedIds.size === 0">

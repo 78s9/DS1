@@ -28,6 +28,7 @@
             <div class="stat-value">{{ countUpTotal }}</div>
             <div class="stat-label">用户总数</div>
             <svg class="sparkline" viewBox="0 0 80 24" preserveAspectRatio="none">
+              <title>示意走势，由上方的真实总数推导，并非真实的历史序列</title>
               <polyline
                 fill="none"
                 stroke="#1890ff"
@@ -98,6 +99,8 @@
             <div class="card-header">
               <span>📈 用户增长趋势</span>
               <span class="card-subtitle">近7天注册量</span>
+              <el-tag size="small" type="warning" effect="plain" style="margin-left: auto"
+                      title="除「今日新增」外，前 6 天是把总数随机拆分生成的示意值">模拟数据</el-tag>
             </div>
           </template>
           <div class="bar-chart">
@@ -128,7 +131,11 @@
       <el-col :span="10">
         <el-card shadow="hover">
           <template #header>
-            <span>🕐 最近活动</span>
+            <div class="card-header">
+              <span>🕐 最近活动</span>
+              <el-tag size="small" type="warning" effect="plain" style="margin-left: auto"
+                      title="固定的示例条目，未接后端">模拟数据</el-tag>
+            </div>
           </template>
           <el-timeline>
             <el-timeline-item

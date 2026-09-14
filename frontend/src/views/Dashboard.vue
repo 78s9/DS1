@@ -127,7 +127,11 @@
             </template>
             <div class="notification-list">
               <div class="notification-title">
-                <span>消息通知</span>
+                <span style="display: flex; align-items: center; gap: 6px;">
+                  消息通知
+                  <el-tag size="small" type="warning" effect="plain"
+                          title="固定的示例条目，未接后端">示例数据</el-tag>
+                </span>
                 <el-button v-if="unreadCount > 0" type="primary" link size="small" @click="markAllRead">
                   全部已读
                 </el-button>

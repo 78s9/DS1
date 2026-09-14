@@ -1,11 +1,11 @@
 <template>
   <ErrorBoundary>
     <div class="realtime-monitor">
-      <!-- Connection Status -->
+      <!-- Data Source Notice -->
       <div class="rm-status-bar">
         <div class="rm-connection">
-          <span class="rm-dot" :class="{ online: connected, offline: !connected }" />
-          <span>{{ connected ? '实时连接中' : '已断开 — 使用模拟数据' }}</span>
+          <el-tag size="small" type="warning" effect="plain">模拟数据</el-tag>
+          <span>本页所有指标均由前端本地随机生成，非真实采集，也没有建立任何实时连接</span>
           <span class="rm-fps">刷新: {{ fps }} FPS</span>
         </div>
         <div class="rm-actions">
@@ -164,7 +164,6 @@ import { Refresh } from '@element-plus/icons-vue'
 import AnimatedNumber from '@/components/AnimatedNumber.vue'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
 
-const connected = ref(true)
 const isMonitoring = ref(true)
 const fps = ref(10)
 let monitorTimer = null
@@ -324,20 +323,6 @@ onUnmounted(() => {
   gap: 8px;
   font-size: 13px;
   color: #606266;
-}
-
-.rm-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.rm-dot.online { background: #67c23a; box-shadow: 0 0 6px rgba(103, 194, 58, 0.6); animation: pulse-dot 2s infinite; }
-.rm-dot.offline { background: #f56c6c; }
-
-@keyframes pulse-dot {
-  0%, 100% { box-shadow: 0 0 4px rgba(103, 194, 58, 0.4); }
-  50% { box-shadow: 0 0 12px rgba(103, 194, 58, 0.8); }
 }
 
 .rm-fps {
