@@ -335,7 +335,9 @@ openssl rand -base64 48
 **工程 & 仓库**
 
 - 🧹 `.gitignore` 加 `!backend/.mvn/wrapper/maven-wrapper.jar` 白名单（wrapper jar 重新纳入跟踪，新 clone 不再依赖联网下载）；排除 `jdk1.8.0_202/` 与 `*.lnk`。
-- 🗑️ 停止跟踪整个 JDK（768 文件，约 375MB）与 `DS1.lnk`（`git rm --cached`，本地文件保留）。
+- 🗑️ ~~停止跟踪整个 JDK（768 文件，约 375MB）与 `DS1.lnk`（`git rm --cached`，本地文件保留）。~~
+  ⚠️ **这条当时并没有生效** —— 见 2026-09-14 记录：`git rm --cached` 执行后未提交，且 `.gitignore` 对已跟踪文件无效，
+  768 个文件一直留在仓库里直到本次修复。
 - 📄 README 快速启动命令修正：`mvnw` → `mvnw.cmd`（Windows）、补充打包步骤、JDK 改为「自装/可选」表述、日志 API 参数补 `status`。
 
 ### 2026-08-14
