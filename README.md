@@ -205,6 +205,11 @@ mvnw.cmd clean package -DskipTests
 java -jar target\ds1-backend-1.0.0.jar
 ```
 
+> ⚠️ **已知问题（2026-09-14）**：`mvnw.cmd` 现在是坏的 —— 它会先下载 Maven，解压后因路径不匹配报
+> 「系统找不到指定的路径」（原因见下方优化记录）。**已装 Maven** 的机器把上面命令里的 `mvnw.cmd` 换成 `mvn` 即可；
+> 没装的机器暂时需要手动装一个 Maven 3.6+，或在 IDE 里直接运行 `Ds1Application`。
+> `start-backend.bat` 走的也是同一个 `mvnw.cmd`，同样受影响。
+
 > 🌱 默认使用 **H2 内存数据库**，无需安装任何数据库！  
 > 后端跑在 → `http://localhost:8080`  
 > H2 控制台 → `http://localhost:8080/h2-console`  
@@ -270,6 +275,54 @@ openssl rand -base64 48
 ---
 
 ## 🧹 优化记录
+
+### 2026-09-14
+
+> 本轮来自一次对外部视角的项目通读，四项依次完成，前两项在本地实跑验证。
+
+**🔴 仓库瘦身：JDK 其实一直没被移出去**
+
+- 🗑️ `jdk1.8.0_202/`（769 个文件，含 21MB 的 `src.zip`）与 `DS1.lnk` 真正停止跟踪，本地文件保留。
+- 🐛 2026-08-17 那节声称已用 `git rm --cached` 移除，但该操作**从未提交**；而 `.gitignore` 对已被跟踪的文件不生效，所以 `jdk1.8.0_202/`、`*.lnk` 两条排除规则写了等于没写。这批文件白留了近一个月。
+- ⚠️ **注意：这次提交不会让 GitHub 上的仓库变小。** 旧的 74MB 包仍在历史里，clone 依旧全量下载。要真正瘦身必须重写历史（`git filter-repo` / BFG）后强推 —— 那是破坏性操作，尚未执行。
+- 📄 已修正 2026-08-17 那条不实记录。
+
+**🔴 角色/账号变更对已签发的 token 即时生效**
+
+- 🔐 无状态 JWT 的通病：token 一签发，里面的 `role` 就固定了。管理员把某人降级为 USER、或直接删号后，对方手上那个 token 在过期前（默认 24h）仍然自称 ADMIN，权限回收等于没做；被删的账号也照样能继续调接口。
+- 🧩 `JwtAuthFilter` 改为用 token 里的用户名回查一次数据库，以库里为准：账号不存在则不认证，角色取数据库的值。代价是每个带 token 的请求多一次按用户名索引的查询；若日后成为瓶颈可加秒级 TTL 缓存，但那个 TTL 就是权限回收的最大延迟，需要显式选值而不是随手加。
+- 🛡️ 顺带修掉一处让上面改动等于白做的配套问题：Spring Security 未配置 `AuthenticationEntryPoint` 时，「未认证」返回 403 而非 401，而前端 `request.js` 只在 401 分支清 token 跳登录页 —— 账号已删的用户会拿着作废的 token 卡在页面里出不去。现在未认证统一 401，已认证但权限不足仍保持 403。
+- 📌 仍未解决：**改密码后旧 token 依然有效**。上面这招治不了它（用户还在、角色也没变），需要 token 版本号之类的机制。
+
+**🟠 数据工坊两处内存泄漏**
+
+- 🐛 `ComponentLab.vue` 的 `MouseTracker` 注释写着 "Setup/teardown"，但只有 setup：`window.addEventListener('mousemove', …)` 没有对应的 removeEventListener。每进一次组件实验室就多挂一个全局处理器，且回调会持续写入已销毁实例的 ref。
+- 🐛 `AdvancedTable.vue` 的 `ResizeObserver` 返回值被直接丢弃，文件里也没有卸载钩子 —— 它持有被观察元素的强引用，不断开的话整个视口连同已渲染的行都无法回收。
+
+**🟡 模拟数据加上显式标识**
+
+- 📊 实时监控页状态栏原本是绿色脉冲点 +「实时连接中」，而 `connected` 写死 `true`，全页没有任何连接（`composables/useWebSocket.js` 写得很完整，但全项目没有任何地方 import 它）。现改为「模拟数据」标签 + 说明，并删掉 `connected` ref 与随之失效的 `.rm-dot` 样式。
+- 🏷️ 其余加标识处：虚拟滚动表格的 10 万条记录、仪表盘「用户增长趋势」（除今日新增外的前 6 天是随机拆分）、「最近活动」、用户总数卡片的 sparkline、顶栏通知中心。均附 `title` 说明具体假在哪。
+
+**验证结果**（本地 `dev` profile 实跑）
+
+| 场景 | 结果 |
+|---|---|
+| USER 的 token 访问 `/api/logs` | ✅ 403 |
+| 提升为 ADMIN 后，仍用**旧** token 访问 `/api/logs` | ✅ 200（即时升权） |
+| 降回 USER 后，仍用**旧** token 访问 `/api/logs` | ✅ 403（即时降权） |
+| 删号后，同一 token 访问 `/api/dashboard/stats` | ✅ 401（立即作废） |
+| 伪造 token / 完全不带 token | ✅ 401 |
+| 合法 USER 的 token 访问 ADMIN 专属接口 | ✅ 403（未被误伤） |
+| `git ls-tree -r HEAD \| grep -c jdk1.8` | ✅ 0（原为 768） |
+| `npm run build` / `mvnw compile` | ✅ 通过 |
+
+> 📌 本轮新发现、尚未处理：
+> - **`backend/mvnw.cmd` 是坏的**。它是手写的 24 行脚本（不是标准 Maven Wrapper），把 Maven 解压到 `dists/apache-maven-3.6.3/apache-maven-3.6.3`，却在第 17/19 行去 `dists/apache-maven-3.6.3-bin/…` 找 `mvn.cmd` —— 路径对不上。在没装 Maven 的机器上，它会先下载 10MB 再报「系统找不到指定的路径」。而 README 的快速启动恰恰让人跑 `mvnw.cmd`。
+> - 历史里那个明文 JWT 密钥仍未轮换。仓库是**公开**的，任何 clone 过的人都能用旧密钥签发 `role=ADMIN` 的 token —— 前提是那个密钥曾在别处跑过。
+> - 前端若干死控件：`UserManagement` 的 `sortable="custom"` 列没有 `@sort-change`、`OperationLogs` 的「刷新」不刷新统计卡、`Dashboard` 的 `markAllRead` 只改角标不改列表样式、`AdvancedTable` 的「批量通过」不清不楚地报成功但什么都不做。
+> - `GlobalExceptionHandler` 的 `@ExceptionHandler(Exception.class)` 会把 JSON 格式错误（`HttpMessageNotReadableException`）也吞成 500，应为 400。
+> - 全项目零测试（`backend/src` 下只有 `main`）。
 
 ### 2026-09-11
 
