@@ -278,7 +278,17 @@ openssl rand -base64 48
 
 ### 2026-09-14
 
-> 本轮来自一次对外部视角的项目通读，四项依次完成，前两项在本地实跑验证。
+> 本轮来自一次对外部视角的项目通读。四项按「风险从高到低、改动从小到大」排序完成，前两项在本地实跑验证。
+
+| 提交 | 内容 |
+|---|---|
+| `61e221a` | chore: 停止跟踪 JDK 与 `DS1.lnk`，修正 README 不实记录 |
+| `a87712f` | fix(frontend): 补齐数据工坊两处缺失的卸载清理 |
+| `3d1d572` | fix(backend): 角色/账号变更对已签发的 token 即时生效 |
+| `2c785dc` | docs(frontend): 给模拟数据加上显式标识 |
+| `c3af806` | docs: 记录本轮改动与验证结果 |
+
+> 📍 分支 `fix/repo-hygiene-and-leaks`，**尚未合入 `main`、尚未 push**。
 
 **🔴 仓库瘦身：JDK 其实一直没被移出去**
 
@@ -317,12 +327,7 @@ openssl rand -base64 48
 | `git ls-tree -r HEAD \| grep -c jdk1.8` | ✅ 0（原为 768） |
 | `npm run build` / `mvnw compile` | ✅ 通过 |
 
-> 📌 本轮新发现、尚未处理：
-> - **`backend/mvnw.cmd` 是坏的**。它是手写的 24 行脚本（不是标准 Maven Wrapper），把 Maven 解压到 `dists/apache-maven-3.6.3/apache-maven-3.6.3`，却在第 17/19 行去 `dists/apache-maven-3.6.3-bin/…` 找 `mvn.cmd` —— 路径对不上。在没装 Maven 的机器上，它会先下载 10MB 再报「系统找不到指定的路径」。而 README 的快速启动恰恰让人跑 `mvnw.cmd`。
-> - 历史里那个明文 JWT 密钥仍未轮换。仓库是**公开**的，任何 clone 过的人都能用旧密钥签发 `role=ADMIN` 的 token —— 前提是那个密钥曾在别处跑过。
-> - 前端若干死控件：`UserManagement` 的 `sortable="custom"` 列没有 `@sort-change`、`OperationLogs` 的「刷新」不刷新统计卡、`Dashboard` 的 `markAllRead` 只改角标不改列表样式、`AdvancedTable` 的「批量通过」不清不楚地报成功但什么都不做。
-> - `GlobalExceptionHandler` 的 `@ExceptionHandler(Exception.class)` 会把 JSON 格式错误（`HttpMessageNotReadableException`）也吞成 500，应为 400。
-> - 全项目零测试（`backend/src` 下只有 `main`）。
+> 📌 本轮发现但未处理的问题已全部并入文末的 **🗺️ 下一步计划** 章节，此处不再重复。
 
 ### 2026-09-11
 
@@ -421,6 +426,64 @@ openssl rand -base64 48
 - 🧹 去除重复样式：删除 `App.vue` 中重复的 `html.dark .header` 规则。
 
 > 📌 后续可优化：Element Plus 全量引入可改为 `unplugin-vue-components` 按需引入（当前最大体积项）。
+
+---
+
+## 🗺️ 下一步计划
+
+> 截至 2026-09-14。历次轮次遗留的待办已在此**合并去重**，各日期条目下保留原始上下文。
+> 「需决策」= 动手前要先定方案；其余可以直接做。P0/P1 是安全与正确性，P2 是前端体验，P3 是工程债。
+
+### 🔴 P0 — 先决策，再动手
+
+| # | 事项 | 为什么 | 需要定什么 |
+|---|---|---|---|
+| 1 | **重写 git 历史瘦身** | `git rm --cached` 只影响**今后**的提交。GitHub 上那个 74MB 的包仍在历史里，clone 依旧全量下载；JDK 与那个明文密钥都还躺在里面 | 是否接受「所有 commit hash 改变 + 必须强推 + 其他人需重新 clone」。工具推荐 `git filter-repo`，BFG 亦可 |
+| 2 | **轮换 JWT 密钥** | 仓库是**公开**的，历史里的 `DS1-SECRET-KEY-2026-…` 任何人可见。若该密钥曾在任何环境真跑过，等于把管理员权限公开 | 它是否在别处部署过？若从未部署，只需标注「已作废、从未上线」即可收口 |
+| 3 | **`DataInitializer` 的默认管理员** | 无条件创建 `admin/admin123` 并用 `System.out` 打印密码，**prod profile 下同样会执行** —— 生产首次启动就带着一个弱口令管理员 | 三选一：仅 dev 创建 / 从环境变量读初始密码 / 首次登录强制改密 |
+
+### 🟠 P1 — 明确缺陷，可直接修
+
+| # | 事项 | 位置 |
+|---|---|---|
+| 4 | **`mvnw.cmd` 路径不匹配**：把 Maven 解压到 `dists/apache-maven-3.6.3/…`，却去 `dists/apache-maven-3.6.3-bin/…` 找 `mvn.cmd`。没装 Maven 的机器上必然失败（下载 10MB 后报「系统找不到指定的路径」）—— 而 README 快速启动正是让人跑它 | `backend/mvnw.cmd:17-20` |
+| 5 | 改密码后旧 token 仍有效最长 24h。降权/删号那两招治不了它（用户还在、角色也没变），需要 token 版本号：`User` 加 `tokenVersion`，签发时写入，filter 比对 | `User` / `JwtUtil` / `JwtAuthFilter` |
+| 6 | `@ExceptionHandler(Exception.class)` 把 JSON 格式错误（`HttpMessageNotReadableException`）、请求方法不支持等 400 类错误吞成 500 | `GlobalExceptionHandler.java:36` |
+| 7 | `register` 的 `existsByUsername` 检查与 `save` 之间存在 TOCTOU：并发下撞唯一约束抛 `DataIntegrityViolationException` → 500 而非 400 | `UserService.java:38-51` |
+| 8 | `updateProfile` 不校验邮箱格式（注册时有 `@Email`，改资料时没有），可以存进垃圾邮箱 | `UserService.java:115-131` |
+| 9 | 登录存在用户名枚举的时序差：用户名不存在时直接抛异常，存在才做 bcrypt 比对（~100ms），响应耗时能区分账号是否存在。文案已统一，时序没有 | `UserService.java:58-63` |
+| 10 | `/h2-console/**` 在 `SecurityConfig` 里 permitAll。实际危害有限（H2 控制台只在 dev profile 启用，prod 下该端点根本不存在），但 `frameOptions().sameOrigin()` 是全局的 | `SecurityConfig.java:36` |
+
+### 🟡 P2 — 前端竞态与死控件
+
+| # | 事项 | 位置 |
+|---|---|---|
+| 11 | **搜索竞态**：`loadLogs()` 无请求序号保护。快速输入 `ab`→`abc` 时若 `ab` 后返回，表格显示旧结果而搜索框显示新词 | `OperationLogs.vue:181-201` |
+| 12 | 筛选变更发**两次**相同请求：`watch(currentPage)` 与显式 `loadLogs()` 同时触发 | `OperationLogs.vue:215-221` |
+| 13 | 「刷新」只重载列表，四张统计卡需整页刷新才更新 | `OperationLogs.vue:7` |
+| 14 | 金额 `"¥1234.56"` 与日期按字符串比较排序，点金额表头 `¥1000` 会排在 `¥900` 之前 | `AdvancedTable.vue:172-177` |
+| 15 | 「批量通过」什么都不做，却提示「已批量处理 N 条记录」 | `AdvancedTable.vue:241-254` |
+| 16 | 连续拖拽两次得到错误顺序（第二次拖拽用的仍是首次渲染的原始索引） | `directives/draggable.js:78-81` |
+| 17 | `sortable="custom"` 列没有 `@sort-change`，点表头只切换箭头、不排序 | `UserManagement.vue:50,71` |
+| 18 | 非管理员也能看到「用户管理」快捷入口，点了被路由守卫弹回首页，看起来像没反应 | `DashboardHome.vue:176` |
+| 19 | `markAllRead` 只把角标置 0、提示「已全部标记为已读」，但列表项样式不变、空状态永远不出现 | `Dashboard.vue:296-299` |
+| 20 | 组件实验室里 schema 驱动的 `select` 的 `v-model` 失效（`fieldComponent()` 每次渲染新建组件类型，`update:modelValue` 落进被忽略的 props），分类永远选不动 | `ComponentLab.vue:296-319` |
+| 21 | 两个 `requestAnimationFrame` 循环无取消，点「刷新数据」后 1.2s 内离开页面会继续写入已销毁组件 | `DashboardHome.vue:262-288` |
+| 22 | 在子组件 `setup()` 里 push 父级 tab 数组：首次渲染 tab 头为空，且重挂载会重复 | `ComponentLab.vue:246-257` |
+
+### 🔵 P3 — 工程与体积
+
+| # | 事项 | 说明 |
+|---|---|---|
+| 23 | **零测试** | `backend/src` 下只有 `main`。至少给认证与权限补集成测试（登录 / 降权 / 删号 / token 失效）。目前所有验证都是手工 curl，没有留存的自动化保障 —— 这也是前几轮安全改动容易回归的原因 |
+| 24 | Element Plus 全量引入 | 主 chunk 1.12MB（gzip 374KB），当前最大体积项。改 `unplugin-vue-components` 按需引入 |
+| 25 | Spring Boot 2.7 / jjwt 0.9.1 均已 EOL | 升级要同步处理 `javax.*` → `jakarta.*`（Boot 3）与 jjwt 0.9 → 0.12 的 API 变更，工作量不小，建议单开一轮 |
+| 26 | 把模拟数据接成真数据 | `useWebSocket.js` 写得很完整但全项目无人 import；实时监控页要么接后端 SSE/WS，要么维持现状（已加「模拟数据」标识）。仪表盘的「近7天趋势」需要后端加一个按天统计的接口 |
+
+### ✅ 最近一轮已完成
+
+2026-09-14：仓库瘦身（停止跟踪 JDK）、角色/账号变更即时生效、两处内存泄漏、模拟数据标识。
+提交 `61e221a` → `c3af806`，逐项说明见上方 2026-09-14 条目；本计划章节由随后的文档提交补入。
 
 ---
 
