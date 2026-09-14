@@ -261,17 +261,27 @@ function regenerate() {
 }
 
 // Init viewport height
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
+
+let resizeObserver = null
+
 onMounted(() => {
   if (viewportRef.value) {
     viewportHeight.value = viewportRef.value.clientHeight
   }
   if (window.ResizeObserver && viewportRef.value) {
-    new ResizeObserver(() => {
+    resizeObserver = new ResizeObserver(() => {
       if (viewportRef.value) viewportHeight.value = viewportRef.value.clientHeight
-    }).observe(viewportRef.value)
+    })
+    resizeObserver.observe(viewportRef.value)
   }
+})
+
+onUnmounted(() => {
+  // ResizeObserver 持有被观察元素的强引用，不 disconnect 的话整个视口（及已渲染的行）都无法回收
+  resizeObserver?.disconnect()
+  resizeObserver = null
 })
 </script>
 

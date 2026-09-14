@@ -151,7 +151,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, h, computed, defineAsyncComponent, shallowRef } from 'vue'
+import { ref, reactive, h, computed, defineAsyncComponent, shallowRef, onUnmounted } from 'vue'
 import { Refresh } from '@element-plus/icons-vue'
 import { ElInput, ElSelect, ElOption, ElSwitch, ElSlider } from 'element-plus'
 import ErrorBoundary from '@/components/ErrorBoundary.vue'
@@ -177,10 +177,18 @@ const MouseTracker = {
       timer = setTimeout(() => { isMoving.value = false }, 300)
     }
 
-    // Setup/teardown
+    // Setup/teardown —— 这是全局监听：不摘掉的话每进一次本页就多挂一个，
+    // 旧实例销毁后回调仍在跑，并持续写入已销毁组件的 ref
     if (typeof window !== 'undefined') {
       window.addEventListener('mousemove', onMove)
     }
+
+    onUnmounted(() => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('mousemove', onMove)
+      }
+      clearTimeout(timer)
+    })
 
     return () => slots.default?.({ x: x.value, y: y.value, isMoving: isMoving.value })
   }
